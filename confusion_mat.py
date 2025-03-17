@@ -8,83 +8,77 @@ import matplotlib.pyplot as plt
 import copy
 from tqdm import tqdm
 import wandb
-wandb.login()
-#760091de6b192857b226ee4bdecf4e7f93175087 
-def confusion_matrix_create(pred,true_p):
-  label_class=['T-shirt/top','Trouser','Pullover','Dress','Coat','Sandal','Shirt','Sneaker','Bag','Ankle boot']
-  wandb.log({ "Confusion Matrix" : wandb.sklearn.plot_confusion_matrix(true_p,pred,label_class)})
-def main():
-  if 2==2:
-    numberOfLayer=3
-    #with wandb.init(config=config, ):
-    #config=wandb.config
-    #wandb.run.name = 'bs-'+str(config.batch_size)+'-lr-'+ str(config.learning_rate)+'-ep-'+str(config.number_of_epochs)+ '-op-'+str(config.optimizer)+ '-nhl-'+str(config.number_of_hidden_layers)+'-shl-'+str(config.size_of_every_hidden_layer)+ '-act-'+str(config.activation_functions)+'-wd-'+str(config.weight_decay)+'-wi-'+str(config.weight_initialisation)
-    numberOfNeuronPerLayer=128
-    numberOfNeuronOutputLayer=10
-    activationFunction='tanh'
-    initializer_type='xavier'
-    eta=0.01
-    regularize_coeef=0
-    batch_size=64
-    optimizer='adam'
-    epoch=15
-    loss="cross_entropy"
-    dataset='fashion_mnist'
-    if dataset =='fashion_mnist':
-       (train_image, train_class),(test_image, test_class) = fashion_mnist.load_data()
-       train_image1=train_image.reshape(train_image.shape[0],-1)
-       train_image_val=train_image1[int(0.9*train_image1.shape[0]):]
-       train_class_val=train_class[int(0.9*train_image1.shape[0]):]
-       train_image=train_image1[:int(0.9*train_image1.shape[0])]
-       train_class=train_class[:int(0.9*train_image1.shape[0])]
-       train_image=train_image/256
-       train_image_val=train_image_val/256
-       test_image1=test_image.reshape(test_image.shape[0],-1)
-       test_image1=test_image1/256
-    else:
-      print('mnist_data')
-      (train_image, train_class),(test_image, test_class) = fashion_mnist.load_data()
-      train_image1=train_image.reshape(train_image.shape[0],-1)
-      train_image_val=train_image1[int(0.9*train_image1.shape[0]):]
-      train_class_val=train_class[int(0.9*train_image1.shape[0]):]
-      train_image=train_image1[:int(0.9*train_image1.shape[0])]
-      train_class=train_class[:int(0.9*train_image1.shape[0])]
-      train_image=train_image/256
-      train_image_val=train_image_val/256
-      test_image1=test_image.reshape(test_image.shape[0],-1)
-      test_image1=test_image1/256
-      
-    #test_image1=test_image.reshape(test_image.shape[0],-1)
-    #test_image1=test_image1/256
-    #train_image2=train_image1[0:1]
-    #train_class2=train_class[0:1]
-    numberOfNeuronPrevLayer=train_image.shape[1]
-    layer_objects=[]
-    layer_objects_grad=[]
-    for i in range(numberOfLayer):
-      if i ==numberOfLayer-1 :
-        layer_object=layer(numberOfNeuronOutputLayer,numberOfNeuronPrevLayer,initializer_type,activationFunction)
-        layer_objects.append(layer_object)
-        layer_objects_grad.append(copy.deepcopy(layer_object))
-      else:
-        layer_object=layer(numberOfNeuronPerLayer,numberOfNeuronPrevLayer,initializer_type,activationFunction)
-        layer_objects.append(layer_object)
-        layer_objects_grad.append(copy.deepcopy(layer_object))
-        numberOfNeuronPrevLayer=numberOfNeuronPerLayer
-    trainer=NeuralNetwork(train_image_val,train_class_val,loss)
-    wandb.init(project ='CS6910-Assignment', magic=False,reinit = True)
-    layer_objects=trainer.Adam_gradient_descent(layer_objects,epoch,train_image,train_class,layer_objects_grad,batch_size,eta,regularize_coeef)
-    #print(layer_objects[len(layer_objects)-1].h)
-    test=TestingModel()
-    output=test.CalculateTest(layer_objects,test_image1)
-    accuracy=test.zeroOneModel(output,test_class)
-    test_loss=test.crossEntropyLoss(layer_objects,test_image1,test_class)
-    print("Test Accuracy is :",accuracy)
-    print("Test Loss is " ,test_loss)
-    #wandb.init(project ='CS6910-Assignment', magic=True,reinit = True)
-    confusion_matrix_create(output,list(test_class))
-	
 
+wandb.login()
+
+def generate_confusion_matrix(predictions, actual_labels):
+    class_labels = ['T-shirt/top', 'Trouser', 'Pullover', 'Dress', 'Coat', 'Sandal', 'Shirt', 'Sneaker', 'Bag', 'Ankle boot']
+    wandb.log({"Confusion Matrix": wandb.sklearn.plot_confusion_matrix(actual_labels, predictions, class_labels)})
+
+def main():
+    total_layers = 3
+    neurons_per_hidden_layer = 128
+    output_neurons = 10
+    activation_fn = 'tanh'
+    weight_init = 'xavier'
+    learning_rate = 0.01
+    reg_coefficient = 0
+    batch_size = 64
+    optimizer_type = 'adam'
+    total_epochs = 15
+    loss_function = "cross_entropy"
+    dataset_choice = 'fashion_mnist'
+
+    if dataset_choice == 'fashion_mnist':
+        (train_images, train_labels), (test_images, test_labels) = fashion_mnist.load_data()
+        reshaped_train = train_images.reshape(train_images.shape[0], -1)
+        validation_images = reshaped_train[int(0.9 * reshaped_train.shape[0]):]
+        validation_labels = train_labels[int(0.9 * reshaped_train.shape[0]):]
+        train_images = reshaped_train[:int(0.9 * reshaped_train.shape[0])]
+        train_labels = train_labels[:int(0.9 * reshaped_train.shape[0])]
+        train_images /= 256
+        validation_images /= 256
+        reshaped_test = test_images.reshape(test_images.shape[0], -1)
+        reshaped_test /= 256
+    else:
+        print('Using MNIST dataset')
+        (train_images, train_labels), (test_images, test_labels) = fashion_mnist.load_data()
+        reshaped_train = train_images.reshape(train_images.shape[0], -1)
+        validation_images = reshaped_train[int(0.9 * reshaped_train.shape[0]):]
+        validation_labels = train_labels[int(0.9 * reshaped_train.shape[0]):]
+        train_images = reshaped_train[:int(0.9 * reshaped_train.shape[0])]
+        train_labels = train_labels[:int(0.9 * reshaped_train.shape[0])]
+        train_images /= 256
+        validation_images /= 256
+        reshaped_test = test_images.reshape(test_images.shape[0], -1)
+        reshaped_test /= 256
+
+    previous_layer_neurons = train_images.shape[1]
+    network_layers = []
+    gradient_layers = []
+    
+    for layer_index in range(total_layers):
+        if layer_index == total_layers - 1:
+            layer_obj = layer(output_neurons, previous_layer_neurons, weight_init, activation_fn)
+        else:
+            layer_obj = layer(neurons_per_hidden_layer, previous_layer_neurons, weight_init, activation_fn)
+            previous_layer_neurons = neurons_per_hidden_layer
+        
+        network_layers.append(layer_obj)
+        gradient_layers.append(copy.deepcopy(layer_obj))
+    
+    model_trainer = NeuralNetwork(validation_images, validation_labels, loss_function)
+    wandb.init(project='DA6401-Assignment', magic=False, reinit=True)
+    network_layers = model_trainer.Adam_gradient_descent(network_layers, total_epochs, train_images, train_labels, gradient_layers, batch_size, learning_rate, reg_coefficient)
+    
+    tester = TestingModel()
+    predictions = tester.CalculateTest(network_layers, reshaped_test)
+    test_accuracy = tester.zeroOneModel(predictions, test_labels)
+    test_loss = tester.crossEntropyLoss(network_layers, reshaped_test, test_labels)
+    
+    print("Test Accuracy:", test_accuracy)
+    print("Test Loss:", test_loss)
+    generate_confusion_matrix(predictions, list(test_labels))
 
 if __name__ == "__main__":
-  main()
+    main()
