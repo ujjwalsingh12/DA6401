@@ -1,0 +1,37 @@
+{
+    "os": "macOS-15.2-arm64-arm-64bit",
+    "python": "3.11.4",
+    "heartbeatAt": "2025-03-17T18:08:56.702071",
+    "startedAt": "2025-03-17T18:08:55.407145",
+    "docker": null,
+    "cuda": null,
+    "args": [],
+    "state": "running",
+    "program": "/Users/ujjwalsingh/Development/dl/DA6401/run.py",
+    "codePathLocal": "run.py",
+    "codePath": "run.py",
+    "git": {
+        "remote": "https://github.com/ujjwalsingh12/DA6401.git",
+        "commit": "7b1ad3caf7b5a4f0b5d52a42de299aa6f16290ce"
+    },
+    "email": "ujjwalmdkj12@gmail.com",
+    "root": "/Users/ujjwalsingh/Development/dl/DA6401",
+    "host": "Ujjwals-MacBook-Pro.local",
+    "username": "root",
+    "executable": "/Users/ujjwalsingh/anaconda3/bin/python",
+    "cpu_count": 10,
+    "cpu_count_logical": 10,
+    "disk": {
+        "/": {
+            "total": 460.4317207336426,
+            "used": 443.25632095336914
+        }
+    },
+    "gpuapple": {
+        "type": "arm",
+        "vendor": "Apple"
+    },
+    "memory": {
+        "total": 16.0
+    }
+}

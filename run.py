@@ -112,8 +112,8 @@ if __name__ == "__main__":
   # Initialize the argument parser
   parser = argparse.ArgumentParser()
   # add arguments to the parsers
-  parser.add_argument('-wp','--project_name',type=str,default='CS6910-Assignment',help='Project name used to track experiments in Weights & Biases dashboard')
-  parser.add_argument('-we','--wandb_entity',type=str,default='amar_cs23m011',help='Project name used to track experiments in Weights & Biases dashboard')
+  parser.add_argument('-wp','--project_name',type=str,default='Deep Learning Course DA6401',help='Project name used to track experiments in Weights & Biases dashboard')
+  parser.add_argument('-we','--wandb_entity',type=str,default='cs23m071-indian-institute-of-technology-madras',help='Project name used to track experiments in Weights & Biases dashboard')
   parser.add_argument('-d','--dataset',type=str,default='fashion_mnist',choices=['mnist', 'fashion_mnist'],help='choose any of the Datasets to use')
   parser.add_argument('-e','--epochs',type=int,default=15,help='Number of epochs to train neural network')
   parser.add_argument('-b','--batch_size',type=int,default=16,help='Batch size used to train neural network')

@@ -1,0 +1,19 @@
+Traceback (most recent call last):
+  File "/Users/ujjwalsingh/Development/dl/DA6401/run.py", line 132, in <module>
+    main(args)
+  File "/Users/ujjwalsingh/Development/dl/DA6401/run.py", line 48, in main
+    (train_image, train_class),(test_image, test_class) = fashion_mnist.load_data()
+                                                          ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/ujjwalsingh/anaconda3/lib/python3.11/site-packages/keras/src/datasets/fashion_mnist.py", line 99, in load_data
+    x_train = np.frombuffer(imgpath.read(), np.uint8, offset=16).reshape(
+                            ^^^^^^^^^^^^^^
+  File "/Users/ujjwalsingh/anaconda3/lib/python3.11/gzip.py", line 301, in read
+    return self._buffer.read(size)
+           ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/ujjwalsingh/anaconda3/lib/python3.11/_compression.py", line 118, in readall
+    while data := self.read(sys.maxsize):
+                  ^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/ujjwalsingh/anaconda3/lib/python3.11/gzip.py", line 518, in read
+    raise EOFError("Compressed file ended before the "
+EOFError: Compressed file ended before the end-of-stream marker was reached
+fashion_mnist_data

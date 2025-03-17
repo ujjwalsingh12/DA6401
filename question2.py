@@ -1,7 +1,7 @@
 # Import necessary modules
-from activation_function import ActivationFunctions
-from testFunction import TestingModel
-from layerclass import layer
+from activation_func import ActivationFunctions
+from test_func import TestingModel
+from layers import layer
 import numpy as np
 import matplotlib.pyplot as plt
 import copy
@@ -402,7 +402,7 @@ def _evaluate_and_log(self, network_layers, epoch, train_images, train_labels):
         "epoch": epoch+1
     })
     
-    def RmsProp(self, network_layers, epochs_max, training_data, training_labels, network_gradients, mini_batch_size, learning_rate, reg_lambda):
+def RmsProp(self, network_layers, epochs_max, training_data, training_labels, network_gradients, mini_batch_size, learning_rate, reg_lambda):
     # Set constants for RMSProp algorithm
     decay_rate, epsilon = 0.5, 1e-8
     gradient_cache = []
