@@ -43,4 +43,4 @@ for label, image in found_classes.items():
 wandb.log({"Fashion-MNIST Samples": wandb_images})
 
 # Finish WandB logging
-wandb.finish()
+
