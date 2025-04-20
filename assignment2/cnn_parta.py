@@ -8,205 +8,160 @@ from torchvision.datasets import ImageFolder
 import wandb
 import math
 import torch.nn.functional as F
-import getdata from getdata
+import getdata
 
-# For GPU Run
-device =  'cuda' if torch.cuda.is_available() else 'cpu'
-# Function for evaluating accuracy and runnning tests
-def evaluate(model,val_data,train_data,epoch):
-   model.eval()
-   vcorrect=0
-   vtotal = 0
-   tcorrect = 0
-   ttotal =0
-   vloss=0
-   tloss=0
+device = 'cuda' if torch.cuda.is_available() else 'cpu'
 
-   with torch.no_grad() :
-    for data in val_data :
-         images,labels = data 
-         images = images.to(device)
-         labels=labels.to(device)
-         pred = model(images)
-         _, predicted = torch.max(pred.data, 1)
-         vtotal += labels.size(0)
-         vcorrect += (predicted == labels).sum().item()
-         criterion = nn.CrossEntropyLoss()
-         vloss = criterion(pred, labels) 
-    for data in train_data:
-         images,labels = data 
-         images = images.to(device)
-         labels=labels.to(device)
-         pred = model(images)
-         _, predicted = torch.max(pred.data, 1)
-         ttotal += labels.size(0)
-         tcorrect += (predicted == labels).sum().item()
-         criterion = nn.CrossEntropyLoss()
-         tloss = criterion(pred, labels) 
+def evaluate_model(model, val_loader, train_loader, epoch):
+    model.eval()
+    val_correct = 0
+    val_total = 0
+    train_correct = 0
+    train_total = 0
+    val_loss = 0
+    train_loss = 0
+
+    criterion = nn.CrossEntropyLoss()
+    with torch.no_grad():
+        for data in val_loader:
+            images, labels = data
+            images, labels = images.to(device), labels.to(device)
+            outputs = model(images)
+            _, preds = torch.max(outputs.data, 1)
+            val_total += labels.size(0)
+            val_correct += (preds == labels).sum().item()
+            val_loss += criterion(outputs, labels).item()
+
+        for data in train_loader:
+            images, labels = data
+            images, labels = images.to(device), labels.to(device)
+            outputs = model(images)
+            _, preds = torch.max(outputs.data, 1)
+            train_total += labels.size(0)
+            train_correct += (preds == labels).sum().item()
+            train_loss += criterion(outputs, labels).item()
+
     wandb.log({
-            'epoch':epoch,
-            'validation_accuracy':vcorrect*100/vtotal ,
-            'validation_loss':vloss,
-            'training_accuracy':tcorrect*100/ttotal,
-            'training_loss':tloss,
-         })
-    print(vcorrect,vtotal,epoch)
+        'epoch': epoch,
+        'val_accuracy': 100 * val_correct / val_total,
+        'val_loss': val_loss,
+        'train_accuracy': 100 * train_correct / train_total,
+        'train_loss': train_loss,
+    })
+    print(f"Epoch {epoch}: Val Acc = {val_correct}/{val_total} ({100 * val_correct / val_total:.2f}%)")
 
-      
+class CustomCNN(nn.Module):
+    def __init__(self, config):
+        super(CustomCNN, self).__init__()
+        self.activation_type = config.activation
+        self.base_filters = config.filters
+        self.filter_strategy = config.filter_organisation
+        self.kernel = config.kernel_size
+        self.dropout_prob = config.dropout
+        self.hidden_nodes = config.hl_nodes
+        self.batchnorm = config.batch_normalisation
 
-# class for CNN model
-class CNNmodel (nn.Module):
-  def __init__ (self,config) :
-    super(CNNmodel,self).__init__()
-    self.activation = config.activation
-    self.filters=config.filters
-    self.filter_augmentation =config.filter_organisation
-    self.kernel_size=config.kernel_size
-    self.dropout = config.dropout
-    self.hl_nodes = config.hl_nodes
-    mypadding = self.kernel_size//2
-    self.batch_normalization=config.batch_normalisation
-    self.pool = nn.MaxPool2d(kernel_size=2,stride=2)
-    self.out1=self.getfilters()
-    self.out2=self.getfilters()
-    self.out3=self.getfilters()
-    self.out4=self.getfilters()
-    self.out5=self.getfilters()
+        pad = self.kernel // 2
+        self.pool = nn.MaxPool2d(2, 2)
+        self.f1 = self.get_next_filter()
+        self.f2 = self.get_next_filter()
+        self.f3 = self.get_next_filter()
+        self.f4 = self.get_next_filter()
+        self.f5 = self.get_next_filter()
 
-    self.conv1 = nn.Conv2d(in_channels=3,out_channels=self.out1,kernel_size=self.kernel_size,stride=1,padding=mypadding)
+        self.conv1 = nn.Conv2d(3, self.f1, self.kernel, 1, pad)
+        self.conv2 = nn.Conv2d(self.f1, self.f2, self.kernel, 1, pad)
+        self.conv3 = nn.Conv2d(self.f2, self.f3, self.kernel, 1, pad)
+        self.conv4 = nn.Conv2d(self.f3, self.f4, self.kernel, 1, pad)
+        self.conv5 = nn.Conv2d(self.f4, self.f5, self.kernel, 1, pad)
 
-    self.conv2 = nn.Conv2d(in_channels=self.out1,out_channels=self.out2,kernel_size=self.kernel_size,stride=1,padding=mypadding)
+        self.bn1 = nn.BatchNorm2d(self.f1)
+        self.bn2 = nn.BatchNorm2d(self.f2)
+        self.bn3 = nn.BatchNorm2d(self.f3)
+        self.bn4 = nn.BatchNorm2d(self.f4)
+        self.bn5 = nn.BatchNorm2d(self.f5)
+        self.bn_hidden = nn.BatchNorm1d(self.hidden_nodes)
 
-    self.conv3 = nn.Conv2d(in_channels=self.out2,out_channels=self.out3,kernel_size=self.kernel_size,stride=1,padding=mypadding)
+        self.fc1 = nn.Linear(self.base_filters * 8 * 8, self.hidden_nodes)
+        self.fc2 = nn.Linear(self.hidden_nodes, 10)
 
-    self.conv4 = nn.Conv2d(in_channels=self.out3,out_channels=self.out4,kernel_size=self.kernel_size,stride=1,padding=mypadding)
+    def get_next_filter(self):
+        if self.filter_strategy == 'half':
+            self.base_filters = math.ceil(self.base_filters / 2)
+        elif self.filter_strategy == 'double':
+            self.base_filters *= 2
+        return self.base_filters
 
-    self.conv5 = nn.Conv2d(in_channels=self.out4,out_channels=self.out5,kernel_size=self.kernel_size,stride=1,padding=mypadding)
-    self.bnhl = nn.BatchNorm1d(self.hl_nodes)
-    self.bn1 = nn.BatchNorm2d(self.out1)
-    self.bn2 = nn.BatchNorm2d(self.out2)
-    self.bn3 = nn.BatchNorm2d(self.out3)
-    self.bn4 = nn.BatchNorm2d(self.out4)
-    self.bn5 = nn.BatchNorm2d(self.out5)
-    self.fc1=nn.Linear(in_features=self.filters*(8*8),out_features=self.hl_nodes)
-    self.fc2=nn.Linear(in_features=self.hl_nodes,out_features=10)
+    def activation(self, x):
+        if self.activation_type == 'ReLU':
+            return F.relu(x)
+        elif self.activation_type == 'GeLU':
+            return F.gelu(x)
+        elif self.activation_type == 'SiLU':
+            return F.silu(x)
+        else:
+            return x * torch.tanh(F.softplus(x))  # Mish
 
-  def activation_op (self,x):
-    # if (self.batch_normalization=='yes'):
-    #   bn = nn.BatchNorm2d(self.filters)
-    #   x=bn(x)
-    if self.activation == 'ReLU' :
-        return F.relu(x)
-    elif self.activation == 'GeLU' :
-       return F.gelu(x)
-    elif self.activation == 'SiLU':
-      return  F.silu(x)
-    else:
-        return x * torch.tanh(F.softplus(x))
- 
-  def getfilters (self):
-     if self.filter_augmentation == 'half':
-        self.filters = math.ceil(self.filters/2)
-     elif self.filter_augmentation == 'double':
-        self.filters=2*self.filters
-     return self.filters
-        
-     
-     
-# Defining the CNN model
-  def forward (self,x):
-    x=x.to(device)
-    x=self.conv1(x)
-    if (self.batch_normalization=='yes'):
-       x=self.bn1(x)
-    x=self.activation_op(x)
-    x=self.pool(x)
-    x=self.conv2(x)
-    if (self.batch_normalization=='yes'):
-       x=self.bn2(x)
-    x=self.activation_op(x)
-    x=self.pool(x)
-    x=self.conv3(x)
-    if (self.batch_normalization=='yes'):
-       x=self.bn3(x)
-    x=self.activation_op(x)
-    x=self.pool(x)
-    x=self.conv4(x)
-    if (self.batch_normalization=='yes'):
-       x=self.bn4(x)
-    x=self.activation_op(x)
-    x=self.pool(x)
-    x=self.conv5(x)
-    if (self.batch_normalization=='yes'):
-       x=self.bn5(x)
-    x=self.activation_op(x)
-    x=self.pool(x)
+    def forward(self, x):
+        x = x.to(device)
 
+        x = self.activation(self.bn1(self.conv1(x)) if self.batchnorm == 'yes' else self.conv1(x))
+        x = self.pool(x)
+        x = self.activation(self.bn2(self.conv2(x)) if self.batchnorm == 'yes' else self.conv2(x))
+        x = self.pool(x)
+        x = self.activation(self.bn3(self.conv3(x)) if self.batchnorm == 'yes' else self.conv3(x))
+        x = self.pool(x)
+        x = self.activation(self.bn4(self.conv4(x)) if self.batchnorm == 'yes' else self.conv4(x))
+        x = self.pool(x)
+        x = self.activation(self.bn5(self.conv5(x)) if self.batchnorm == 'yes' else self.conv5(x))
+        x = self.pool(x)
 
-    # x = x.view(-1, self.filters * 8 * 8)
-    x = torch.flatten(x, start_dim=1)
-    dropoutcode = nn.Dropout(p=self.dropout)
-    x=dropoutcode(x)
-    x=self.fc1(x)
-    if (self.batch_normalization=='yes'):
-       x=self.bnhl(x)
-    x=self.activation_op(x)
-    
-    if (self.batch_normalization=='yes'):
-        x=self.bnhl(x)
-    
-    
-    x = self.fc2(x)
-    return x
+        x = torch.flatten(x, 1)
+        x = nn.Dropout(self.dropout_prob)(x)
+        x = self.activation(self.bn_hidden(self.fc1(x)) if self.batchnorm == 'yes' else self.fc1(x))
+        x = self.fc2(x)
 
-def train_wandb():
+        return x
 
-    # Initialize wandb
-    
-    
-    wandb.init( )
-    # Access the hyperparameters defined in the sweep
+def run_training():
+    wandb.init(project="model_eval", name="test")
     config = wandb.config
 
-    training_data,validation_data,test_data=get_data(config.data_augmentation)
-    train_loader = torch.utils.data.DataLoader(training_data, batch_size=config.batch_size, shuffle=True)
-    val_loader = torch.utils.data.DataLoader(validation_data, batch_size=config.batch_size, shuffle=False)
-    test_loader=torch.utils.data.DataLoader(test_data,batch_size=config.batch_size, shuffle=False)
-    
-    model = CNNmodel(config)
-    model=model.to(device)
+    train_set, val_set, test_set = get_data(config.data_augmentation)
+    train_loader = torch.utils.data.DataLoader(train_set, batch_size=config.batch_size, shuffle=True)
+    val_loader = torch.utils.data.DataLoader(val_set, batch_size=config.batch_size, shuffle=False)
+    test_loader = torch.utils.data.DataLoader(test_set, batch_size=config.batch_size, shuffle=False)
+
+    model = CustomCNN(config).to(device)
     criterion = nn.CrossEntropyLoss()
-    # using adam optimizer
     optimizer = optim.Adam(model.parameters(), lr=config.learning_rate)
-    for j in range (0,config.epochs) :
-       current_loss = 0.0
-       model.train()
-       for i, data in enumerate(train_loader, 0):
-          inp, labels = data
-          inp = inp.to(device)
-          labels=labels.to(device)
-          optimizer.zero_grad()
-          op = model(inp)
-          loss = criterion(op, labels) 
-          loss.backward() 
-          optimizer.step() 
-          if(i%500==0):
-             print(i) 
 
-          current_loss += loss.item()
-       evaluate(model,val_loader,train_loader,j+1)
+    for epoch in range(config.epochs):
+        model.train()
+        total_loss = 0.0
+        for i, (inputs, targets) in enumerate(train_loader):
+            inputs, targets = inputs.to(device), targets.to(device)
+            optimizer.zero_grad()
+            outputs = model(inputs)
+            loss = criterion(outputs, targets)
+            loss.backward()
+            optimizer.step()
+            total_loss += loss.item()
 
-    # Train the model using the specified optimizer and hyperparameters
+            if i % 500 == 0:
+                print(f"Epoch {epoch+1}, Step {i}, Loss: {loss.item():.4f}")
+
+        evaluate_model(model, val_loader, train_loader, epoch + 1)
 
     wandb.finish()
-
-    # Best model parameters
+    
+# Best model parameters
 def main ():
     sweep_config = {
     'method': 'bayes',
-    'name' : 'question 1',
+    'name' : 'testing',
     'metric': {
-      'name': 'test_accuracy',
+      'name': 'validation_accuracy',  # <- updated to match wandb.log in evaluate()
       'goal': 'maximize'
     },
     'parameters': {
@@ -247,20 +202,13 @@ def main ():
       'hl_nodes':{
          'values':[256]
       }
-
-
-
-
     }
 }
 
-
-    
     sweep_id = wandb.sweep(sweep=sweep_config, project='DA6401_A2', entity='cs23m071-indian-institute-of-technology-madras')
 
-# # Execute the sweep
-    wandb.agent(sweep_id, function=train_wandb, count=5)
-
+    # Execute the sweep
+    wandb.agent(sweep_id, function=run_training, count=50)
 
 if __name__ == "__main__":
     wandb.login(key="1b74d87eef0c8dff900595f1526e95e162049f6a")
